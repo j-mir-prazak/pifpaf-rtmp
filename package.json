@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "rtmp-swarm": "^0.1.7"
+  }
+}
