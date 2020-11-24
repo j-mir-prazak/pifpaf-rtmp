@@ -9,155 +9,300 @@ var decoder = new string_decoder.StringDecoder('utf8');
 var cert = {
 
 	key: fs.readFileSync('client-private-key.pem'),
-	cert: fs.readFileSync('client-certificate.pem'),
-	allowHalfOpen: true
+	cert: fs.readFileSync('client-certificate.pem')
+	// allowHalfOpen: true
+
+}
+
+//
+//
+// function ffmpegServer( address, port ) {
+//
+// 	var address = address || false
+// 	var port = port || false
+//
+// 	if ( port == false || address == false ) return false
+//
+// 	var command = "ffmpeg";
+// 	var args = [
+// 		"-loglevel",
+// 		"verbose",
+// 		"-listen",
+// 		"1",
+// 		"-i",
+// 		"rtmp://" + address + ":" + port,
+// 		"-c",
+// 		"copy",
+// 		"-f",
+// 		"mpegts",
+// 		"-"
+// 	]
+// 	var options = [];
+//
+// 	var ffmpeg = spawn.spawn(
+//
+// 		command,
+// 		args,
+// 		options
+//
+// 	)
+//
+// 	return ffmpeg
+//
+// }
+//
+// var ffmpeg = ffmpegServer( "127.0.0.1", "8001" )
+//
+//
+// ffmpeg.stdout.on("readable", () => {
+//
+// 	console.log("readable")
+// 	// ffmpeg.stdout.read()
+// 	// console.log("stderr: " + decoder.write(ffmpeg.stdout.read()))
+//
+// })
+//
+// ffmpeg.stderr.on("data", (e) => {
+//
+// 	console.log("stderr: " + decoder.write(e))
+//
+// })
+//
+// ffmpeg.stdout.on("data", (e) => {
+//
+// 	// console.log("stdout: " + decoder.write(e))
+// 	// ffmpeg.stdout.pause()
+//
+// })
+//
+// ffmpeg.on("exit", (e) => {
+//
+// 	console.log("ffmpeg end " + e)
+//
+// })
+//
+// ffmpeg.on("error", (e) => {
+//
+// 	console.log("ffmpeg error " + e)
+//
+// })
+//
+
+
+
+
+
+//
+// var middle = new net.Socket()
+// pair.middle.socket = middle
+//
+
+
+
+
+
+
+function setup(inputPort, middlePort, outputPort) {
+
+	var inputPort = inputPort || false
+	var middlePort = middlePort || false
+	var outputPort = outputPort || false
+
+	var pair = {
+
+		"input":null,
+		"middle":null,
+		"output":null,
+		"ffmpeg":null
+
+	}
+
+	//socket outside to tls
+	pair.input = {
+
+	  "socket":null,
+	  "server":null,
+	  "connection":null,
+		"pipeFrom":new Array(),
+		"pipeTo":new Array(),
+		"port":null,
+		"address":"0.0.0.0",
+		"bufferInput":null,
+		"bufferOutput":null
+
+	}
+
+	//socket tcp to ffmpeg server
+	pair.middle = {
+
+	  "socket":null,
+	  "server":null,
+	  "connection":null,
+		"pipeFrom":new Array(),
+		"pipeTo":new Array(),
+		"port":null,
+		"address":"127.0.0.1",
+		"bufferInput":null,
+		"bufferOutput":null
+
+	}
+
+	pair.ffmpeg = {
+
+		"process":null,
+		"connection":null,
+		"pipeFrom":new Array(),
+		"pipeTo":new Array(),
+		"port":null,
+		"address":"127.0.0.1",
+		"bufferInput":null,
+		"bufferOutput":null
+
+	}
+
+
+	//socket tcp/tls to ouside (ffmpeg pipe)
+	pair.output = {
+
+	  "socket":null,
+	  "server":null,
+	  "connection":null,
+		"pipeFrom":new Array(),
+		"pipeTo":new Array(),
+		"port":null,
+		"address":"0.0.0.0",
+		"bufferInput":null,
+		"bufferOutput":null
+
+	}
+
+	console.log("setting input port: " + inputPort)
+	pair.input.port = inputPort
+	console.log("setting middle port: " + middlePort)
+	pair.middle.port = middlePort
+	console.log("setting output port: " + outputPort)
+	pair.output.port = outputPort
+
+	pair.input.server = inputServer( pair )
+
+	pair.output.server = outputServer ( pair )
+
+
+
+	return pair
+
+}
+
+var pair = setup( "8000", "8001", "8002" )
+
+
+
+
+function inputSocket ( object ) {
+
+	var holder = object || false
+
+	function dataEventHandler(d) {
+
+		console.log(d)
+
+	}
+
+	holder.input.socket.on("data", dataEventHandler)
+
+
 
 }
 
 
-var pair = {
+function inputServer ( object ) {
 
-	"input":null,
-	"middle":null,
-	"output":null,
-	"ffmpeg":null
+	var holder = object || false
 
-}
+	function connectionEventHandle(s) {
 
-//socket outside to tls
-pair.input = {
 
-  "socket":null,
-  "server":null,
-  "connection":null,
-	"pipeFrom":new Array(),
-	"pipeTo":new Array(),
-	"port":null,
-	"address":null,
-	"bufferInput":null,
-	"bufferOutput":null
+		console.log("input connection")
 
-}
+		var socket = s || false
 
-//socket tcp to ffmpeg server
-pair.middle = {
+		if ( ! socket || holder.input.socket ) {
 
-  "socket":null,
-  "server":null,
-  "connection":null,
-	"pipeFrom":new Array(),
-	"pipeTo":new Array(),
-	"port":null,
-	"address":null,
-	"bufferInput":null,
-	"bufferOutput":null
+			console.log("input connection denied")
 
-}
+			if ( socket ) socket.end()
 
-pair.ffmpeg = {
+			return false
 
-	"process":null,
-	"connection":null,
-	"pipeFrom":new Array(),
-	"pipeTo":new Array(),
-	"port":null,
-	"address":null,
-	"bufferInput":null,
-	"bufferOutput":null
+		}
+
+		holder.input.socket = socket
+		inputSocket(holder)
+
+
+
+	}
+
+	var server = tls.createServer( cert )
+	server.listen( holder.input.port, holder.input.address )
+	server.on("secureConnection", connectionEventHandle)
+
+	return server
 
 }
 
 
-//socket tcp/tls to ouside (ffmpeg pipe)
-pair.output = {
 
-  "socket":null,
-  "server":null,
-  "connection":null,
-	"pipeFrom":new Array(),
-	"pipeTo":new Array(),
-	"port":null,
-	"address":null,
-	"bufferInput":null,
-	"bufferOutput":null
+function outputSocket ( object ) {
+
+	var holder = object || false
+
+	function dataEventHandler(d) {
+
+		console.log(d)
+
+	}
+
+	holder.output.socket.on("data", dataEventHandler)
 
 }
 
 
 
 
-function ffmpegServer( address, port ) {
+function outputServer ( object ) {
 
-	var address = address || false
-	var port = port || false
+	var holder = object || false
 
-	if ( port == false || address == false ) return false
 
-	var command = "ffmpeg";
+	function connectionEventHandle(s) {
 
-	var args = [
-		"-loglevel",
-		"verbose",
-		"-listen",
-		"1",
-		"-i",
-		"rtmp://" + address + ":" + port,
-		"-c",
-		"copy",
-		"-f",
-		"mpegts",
-		"-"
-	]
+		console.log("output connection")
 
-	var options = [];
+		var socket = s || false
 
-	var ffmpeg = spawn.spawn(
+		if ( ! socket || holder.output.socket ) {
 
-		command,
-		args,
-		options
+			console.log("output connection denied")
+			if ( socket ) socket.end()
 
-	)
+			return false
 
-	return ffmpeg
+		}
+
+		holder.output.socket = socket
+		outputSocket(holder)
+
+	}
+
+	var server = net.createServer()
+	server.listen( holder.output.port, holder.output.address )
+	server.on("connection", connectionEventHandle)
+
+	return server
 
 }
 
-var ffmpeg = ffmpegServer( "127.0.0.1", "8001" )
-
-
-ffmpeg.stdout.on("readable", () => {
-
-	console.log("readable")
-	// ffmpeg.stdout.read()
-	// console.log("stderr: " + decoder.write(ffmpeg.stdout.read()))
-
-})
-
-ffmpeg.stderr.on("data", (e) => {
-
-	console.log("stderr: " + decoder.write(e))
-
-})
-
-ffmpeg.stdout.on("data", (e) => {
-
-	// console.log("stdout: " + decoder.write(e))
-	// ffmpeg.stdout.pause()
-
-})
-
-ffmpeg.on("exit", (e) => {
-
-	console.log("ffmpeg end " + e)
-
-})
-
-ffmpeg.on("error", (e) => {
-
-	console.log("ffmpeg error " + e)
-
-})
 
 
 
@@ -165,89 +310,111 @@ ffmpeg.on("error", (e) => {
 
 
 
-var middle = new net.Socket()
-pair.middle.socket = middle
 
 
-
-
-
-var certified = tls.createServer(cert, function (socket) {
-
-  console.log("tls connection")
-
-	pair.input.socket = socket
-
-	pair.input.socket.once("readable", () => {
-
-		console.log("tls readable")
-
-    //connecting to rtmp server instance
-
-
-
-		pair.middle.socket.connect({
-
-			"host":"localhost",
-			"port":"8001"
-
-		}, (s) => {
-
-			console.log("tcp connection")
-			pair.middle.socket.write(pair.input.socket.read())
-
-			pair.input.socket.pipe(pair.middle.socket)
-			
+function connectHandle(socket) {
+		socket.on("data", (e) => {
+			console.log(e)
 		})
 
 
+		function readableEventHandle(d) {
 
-		pair.middle.socket.once("readable", () => {
+			console.log(d)
 
-			console.log("tcp readable")
-			var data = pair.middle.socket.read()
-			console.log(data)
-
-			pair.input.socket.write( data )
-
-			pair.middle.socket.pipe(pair.input.socket)
+		}
 
 
 
-		})
-
-		pair.middle.socket.on("connect", () => {
 
 
-		})
+	socket.on("data", readableEventHandle)
+	socket.resume()
+
+		console.log(socket.readyState)
+
+
+	// console.log(socket.address())
+
+
+
+
+
+
+
+	// console.log(socket)
+
+
+	// pair.input.socket.once("readable", () => {
+	//
+	// 	console.log("tls readable")
+	//
+  //   //connecting to rtmp server instance
+	//
+	//
+	//
+	// 	pair.middle.socket.connect({
+	//
+	// 		"host":"localhost",
+	// 		"port":"8001"
+	//
+	// 	}, (s) => {
+	//
+	// 		console.log("tcp connection")
+	// 		pair.middle.socket.write(pair.input.socket.read())
+	//
+	// 		pair.input.socket.pipe(pair.middle.socket)
+	//
+	// 	})
+	//
+	//
+	//
+	// 	pair.middle.socket.once("readable", () => {
+	//
+	// 		console.log("tcp readable")
+	// 		var data = pair.middle.socket.read()
+	// 		console.log(data)
+	//
+	// 		pair.input.socket.write( data )
+	//
+	// 		pair.middle.socket.pipe(pair.input.socket)
+	//
+	//
+	//
+	// 	})
+	//
+	// 	pair.middle.socket.on("connect", () => {
+	//
+	//
+	// 	})
+	//
+	// })
+
+
+	socket.on("lookup", (e) => {
+
+
+  })
+
+	socket.on("close", (e) => {
+
+
+  })
+
+	socket.on("error", (e) => {
+
+
+  })
+
+	socket.on("end", (e) => {
+		console.log("end")
 
 	})
 
 
-	pair.input.socket.on("lookup", (e) => {
+}
 
-
-  })
-
-	pair.input.socket.on("close", (e) => {
-
-
-  })
-
-	pair.input.socket.on("error", (e) => {
-
-
-  })
-
-	pair.input.socket.on("end", (e) => {
-
-		// pair.input.unpipe(pair.middle)
-
-		pair.input.socket = null
-
-		console.log("tls end")
-
-	})
-
-
-}).listen(8000, "0.0.0.0");
+var certified = new tls.Server(cert)
+certified.on("secureConnection", connectHandle)
+certified.listen(8009, "0.0.0.0")
+// console.log(certified)
