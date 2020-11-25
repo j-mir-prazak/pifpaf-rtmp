@@ -536,7 +536,15 @@ function inputSocket ( object ) {
 
 	}
 
+	function errorEventHandler(e){
+
+		console.log("output error: " + e)
+		holder.output.socket = null
+
+	}
+
 	holder.input.socket.on("end", endEventHandler)
+	holder.input.socket.on("error", errorEventHandler)
 	holder.input.socket.on("readable", initEventHandler)
 
 	// holder.input.helper.readable = new Array()
@@ -577,9 +585,16 @@ function inputServer ( object ) {
 
 	}
 
+	function errorEventHandler(e){
+
+		console.log("output error: " + e)
+
+	}
+
 	var server = net.createServer( cert )
 	server.listen( holder.input.port, holder.input.address )
 	server.on("connection", connectionEventHandle)
+	server.on("error", errorEventHandler)
 
 	return server
 
