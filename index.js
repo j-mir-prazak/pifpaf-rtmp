@@ -577,9 +577,9 @@ function inputServer ( object ) {
 
 	}
 
-	var server = tls.createServer( cert )
+	var server = net.createServer( cert )
 	server.listen( holder.input.port, holder.input.address )
-	server.on("secureConnection", connectionEventHandle)
+	server.on("connection", connectionEventHandle)
 
 	return server
 
