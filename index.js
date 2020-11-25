@@ -355,10 +355,16 @@ function middleSocket ( object ) {
 
 	}
 
+	function errorEventHandler(e) {
+
+		console.log("middle socket error: "+e)
+	}
+
 	holder.middle.socket.on( "connect", connectionEventHandler )
 	holder.middle.socket.on( "end", endEventHandler )
 	holder.middle.socket.on( "close", closeEventHandler )
 	holder.middle.socket.on( "readable", readableEventHandler )
+	holder.middle.socket.on( "error", errorEventHandler )
 
 
 	holder.middle.socket.connect (
