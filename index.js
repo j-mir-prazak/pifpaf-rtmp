@@ -128,7 +128,8 @@ function setup(inputPort, middlePort, outputPort) {
 		"port":null,
 		"address":"0.0.0.0",
 		"bufferInput":null,
-		"bufferOutput":null
+		"bufferOutput":null,
+		"readable":null
 
 	}
 
@@ -143,7 +144,8 @@ function setup(inputPort, middlePort, outputPort) {
 		"port":null,
 		"address":"127.0.0.1",
 		"bufferInput":null,
-		"bufferOutput":null
+		"bufferOutput":null,
+		"readable":null
 
 	}
 
@@ -156,7 +158,8 @@ function setup(inputPort, middlePort, outputPort) {
 		"port":null,
 		"address":"127.0.0.1",
 		"bufferInput":null,
-		"bufferOutput":null
+		"bufferOutput":null,
+		"readable":null
 
 	}
 
@@ -172,20 +175,26 @@ function setup(inputPort, middlePort, outputPort) {
 		"port":null,
 		"address":"0.0.0.0",
 		"bufferInput":null,
-		"bufferOutput":null
+		"bufferOutput":null,
+		"readable":null
 
 	}
 
 	console.log("setting input port: " + inputPort)
 	pair.input.port = inputPort
-	console.log("setting middle port: " + middlePort)
+	console.log("setting middle port and ffmpeg port: " + middlePort)
 	pair.middle.port = middlePort
+	pair.ffmpeg.port = middlePort
 	console.log("setting output port: " + outputPort)
 	pair.output.port = outputPort
 
 	pair.input.server = inputServer( pair )
 
+	pair.middle.socket = new net.Socket()
+
 	pair.output.server = outputServer ( pair )
+
+	pair.ffmpeg.process = ffmpegServer ( pair)
 
 
 
@@ -198,17 +207,271 @@ var pair = setup( "8000", "8001", "8002" )
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function ffmpeg( port, address ) {
+
+	console.log("setting ffmpeg on: " + address + ":" + port)
+
+	var address = address || false
+	var port = port || false
+
+	if ( port == false || address == false ) return false
+
+	var command = "ffmpeg";
+	var args = [
+		"-loglevel",
+		"verbose",
+		"-listen",
+		"1",
+		"-i",
+		"rtmp://" + address + ":" + port,
+		"-c",
+		"copy",
+		"-f",
+		"mpegts",
+		"-"
+	]
+	var options = [];
+
+	var ffmpeg = spawn.spawn(
+
+		command,
+		args,
+		options
+
+	)
+
+	return ffmpeg
+
+}
+
+
+
+
+
+function ffmpegServer ( object ) {
+
+	var holder = object || false
+
+	function readableEventHandler() {
+		var data = server.stdout.read()
+		console.log(data)
+
+	}
+
+	function readableErrEventHandler() {
+		var data = server.stderr.read()
+		if ( data ) console.log(decoder.write(data))
+
+	}
+
+	function exitEventHandler(e) {
+
+		console.log("ffmpeg exit: " + e)
+
+	}
+
+	var server = ffmpeg( holder.ffmpeg.port , holder.ffmpeg.address )
+	server.stdout.on("readable", readableEventHandler)
+	server.on("exit", exitEventHandler)
+	server.stderr.on("readable", readableErrEventHandler)
+
+	return server
+
+}
+
+
+
+function middleSocket ( object ) {
+
+	var holder = object || false
+
+	if ( ! holder ) return false
+
+	function connectionEventHandle() {
+
+		console.log("middle socket connected")
+		holder.middle.connection = true
+		inputToMiddlePipe( holder )
+
+	}
+
+	function readableEventHandle() {
+
+		console.log("middle socket readable")
+		if ( holder.middle.connection && holder.middle.readable == null ) {
+
+			console.log(holder.middle.readable)
+			holder.middle.readable = true
+			middleToInputPipe( holder )
+
+		}
+
+
+	}
+
+	function endEventHandle() {
+
+		console.log("middle socket ended")
+		holder.middle.connection = null
+
+	}
+
+	holder.middle.socket.on( "connect", connectionEventHandle )
+	holder.middle.socket.on( "readable", readableEventHandle )
+	holder.middle.socket.on( "end", endEventHandle )
+
+
+	holder.middle.socket.connect(
+			{
+
+			"host":holder.ffmpeg.address,
+			"port":holder.ffmpeg.port
+
+			}
+	)
+
+	return true
+}
+
+
+function inputToMiddle( object ) {
+
+	var holder = object || false
+
+	if ( holder.input.socket && holder.ffmpeg.process ) {
+		middleSocket( holder )
+
+	}
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+function inputToMiddlePipe( object ) {
+
+	console.log("crosspiping input to middle")
+
+	var holder = object || false
+
+
+
+	var data = holder.input.socket.read()
+	console.log("writing input to middle: " + data)
+	holder.middle.socket.write(  data )
+
+
+}
+
+
+
+
+
+
+
+
+
+function middleToInputPipe( object ) {
+
+	console.log("crosspiping middle to input")
+
+	var holder = object || false
+
+
+
+	var data = holder.middle.socket.read()
+	// console.log("writing middle to input: " + data)
+	// holder.input.socket.write( data )
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 function inputSocket ( object ) {
 
 	var holder = object || false
 
-	function dataEventHandler(d) {
+	function readableEventHandler() {
 
-		console.log(d)
+		// console.log(holder.input.socket)
+		// holder.input.socket.read()
+
+		if ( holder.input.readable ) return false
+		holder.input.readable = true
+		console.log("input server readable")
+		inputToMiddle(holder)
+
+
+		//holding first messages
+		// holder.input.bufferInput = holder.input.socket.read()
+
+
 
 	}
 
-	holder.input.socket.on("data", dataEventHandler)
+
+
+
+	//cleaning on end
+	function endEventHandler() {
+
+		console.log("cleaning input socket")
+		holder.input.socket = null
+		holder.input.readable = null
+
+
+	}
+
+	holder.input.socket.on("end", endEventHandler)
+	holder.input.socket.on("readable", readableEventHandler)
 
 
 
@@ -221,10 +484,11 @@ function inputServer ( object ) {
 
 	function connectionEventHandle(s) {
 
-
-		console.log("input connection")
+		console.log("input connection on: " + holder.input.port )
 
 		var socket = s || false
+
+		// console.log(holder.input.socket)
 
 		if ( ! socket || holder.input.socket ) {
 
@@ -238,8 +502,6 @@ function inputServer ( object ) {
 
 		holder.input.socket = socket
 		inputSocket(holder)
-
-
 
 	}
 
@@ -257,13 +519,24 @@ function outputSocket ( object ) {
 
 	var holder = object || false
 
-	function dataEventHandler(d) {
+	function readableEventHandler(d) {
 
-		console.log(d)
+		console.log("output connection on: " + holder.output.port )
 
 	}
 
-	holder.output.socket.on("data", dataEventHandler)
+	//cleaning on end
+	function endEventHandler(d) {
+
+
+		console.log("cleaning output socket")
+		holder.output.socket = null
+
+
+	}
+
+	holder.output.socket.on("readable", readableEventHandler)
+	holder.output.socket.on("end", endEventHandler)
 
 }
 
@@ -277,7 +550,7 @@ function outputServer ( object ) {
 
 	function connectionEventHandle(s) {
 
-		console.log("output connection")
+		console.log("output connection on: " + holder.input.port )
 
 		var socket = s || false
 
