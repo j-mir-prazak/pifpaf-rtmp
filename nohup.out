@@ -1,0 +1,36 @@
+
+(firefox:51715): Gtk-WARNING **: 16:17:06.767: Theme parsing error: gtk.css:2:33: Failed to import: Error opening file /home/metro/.config/gtk-3.0/window_decorations.css: No such file or directory
+Gtk-Message: 16:17:06.831: Failed to load module "colorreload-gtk-module"
+
+###!!! [Child][RunMessage] Error: Channel closing: too late to send/recv, messages will be lost
+
+
+(firefox:51715): Gtk-WARNING **: 16:17:18.579: Theme parsing error: gtk.css:2:33: Failed to import: Error opening file /home/metro/.config/gtk-3.0/window_decorations.css: No such file or directory
+Gtk-Message: 16:17:18.657: Failed to load module "colorreload-gtk-module"
+
+(/usr/lib/firefox/firefox:51877): Gtk-WARNING **: 16:17:20.643: Theme parsing error: gtk.css:2:33: Failed to import: Error opening file /home/metro/.config/gtk-3.0/window_decorations.css: No such file or directory
+Gtk-Message: 16:17:20.760: Failed to load module "colorreload-gtk-module"
+
+(/usr/lib/firefox/firefox:51897): Gtk-WARNING **: 16:17:20.959: Theme parsing error: gtk.css:2:33: Failed to import: Error opening file /home/metro/.config/gtk-3.0/window_decorations.css: No such file or directory
+Gtk-Message: 16:17:21.069: Failed to load module "colorreload-gtk-module"
+
+(/usr/lib/firefox/firefox:51945): Gtk-WARNING **: 16:17:21.401: Theme parsing error: gtk.css:2:33: Failed to import: Error opening file /home/metro/.config/gtk-3.0/window_decorations.css: No such file or directory
+Gtk-Message: 16:17:21.508: Failed to load module "colorreload-gtk-module"
+
+(/usr/lib/firefox/firefox:52031): Gtk-WARNING **: 16:17:28.137: Theme parsing error: gtk.css:2:33: Failed to import: Error opening file /home/metro/.config/gtk-3.0/window_decorations.css: No such file or directory
+Gtk-Message: 16:17:28.258: Failed to load module "colorreload-gtk-module"
+
+(/usr/lib/firefox/firefox:52067): Gtk-WARNING **: 16:18:39.964: Theme parsing error: gtk.css:2:33: Failed to import: Error opening file /home/metro/.config/gtk-3.0/window_decorations.css: No such file or directory
+Gtk-Message: 16:18:40.096: Failed to load module "colorreload-gtk-module"
+
+(/usr/lib/firefox/firefox:52312): Gtk-WARNING **: 16:19:12.714: Theme parsing error: gtk.css:2:33: Failed to import: Error opening file /home/metro/.config/gtk-3.0/window_decorations.css: No such file or directory
+Gtk-Message: 16:19:12.785: Failed to load module "colorreload-gtk-module"
+
+(/usr/lib/firefox/firefox:52413): Gtk-WARNING **: 16:19:30.614: Theme parsing error: gtk.css:2:33: Failed to import: Error opening file /home/metro/.config/gtk-3.0/window_decorations.css: No such file or directory
+Gtk-Message: 16:19:30.698: Failed to load module "colorreload-gtk-module"
+
+(/usr/lib/firefox/firefox:52473): Gtk-WARNING **: 16:21:37.709: Theme parsing error: gtk.css:2:33: Failed to import: Error opening file /home/metro/.config/gtk-3.0/window_decorations.css: No such file or directory
+Gtk-Message: 16:21:37.786: Failed to load module "colorreload-gtk-module"
+
+(/usr/lib/firefox/firefox:52693): Gtk-WARNING **: 16:22:15.053: Theme parsing error: gtk.css:2:33: Failed to import: Error opening file /home/metro/.config/gtk-3.0/window_decorations.css: No such file or directory
+Gtk-Message: 16:22:15.146: Failed to load module "colorreload-gtk-module"

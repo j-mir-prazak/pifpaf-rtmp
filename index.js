@@ -129,7 +129,10 @@ function setup(inputPort, middlePort, outputPort) {
 		"address":"0.0.0.0",
 		"bufferInput":null,
 		"bufferOutput":null,
-		"readable":null
+		"readable":null,
+		"helper":{
+			"readable":new Array()
+		}
 
 	}
 
@@ -154,7 +157,7 @@ function setup(inputPort, middlePort, outputPort) {
 		"process":null,
 		"connection":null,
 		"pipeFrom":null,
-		"pipeTo":null,
+		"pipeTo":new Array(),
 		"port":null,
 		"address":"127.0.0.1",
 		"bufferInput":null,
@@ -269,20 +272,32 @@ function ffmpegServer ( object ) {
 	var holder = object || false
 
 	function readableEventHandler() {
+
 		var data = server.stdout.read()
-		console.log(data)
+
+		if (holder.ffmpeg.pipeTo.length > 0) {
+		holder.ffmpeg.pipeTo.forEach((item, i) => {
+
+			if ( item.writable && data) item.write(data)
+
+
+			});
+		}
+
+
 
 	}
 
 	function readableErrEventHandler() {
 		var data = server.stderr.read()
-		if ( data ) console.log(decoder.write(data))
+		// if ( data ) console.log(decoder.write(data))
 
 	}
 
 	function exitEventHandler(e) {
 
 		console.log("ffmpeg exit: " + e)
+		holder.ffmpeg.process = ffmpegServer( holder )
 
 	}
 
@@ -307,8 +322,6 @@ function middleSocket ( object ) {
 
 		console.log("middle socket connected")
 		holder.middle.connection = true
-		if ( holder.middle.pipeFrom ) return false
-		holder.middle.pipeFrom = holder.input
 		inputToMiddlePipe( holder )
 
 	}
@@ -318,25 +331,37 @@ function middleSocket ( object ) {
 	function readableEventHandler() {
 
 		console.log("middle socket readable")
+		holder.middle.socket.removeListener("readable",readableEventHandler)
 		middleToInputPipe( holder )
 
 
 
 	}
 
-	function endEventHandle() {
+	function endEventHandler() {
 
+		middleToInputUnpipe( holder )
 		console.log("middle socket ended")
 		holder.middle.connection = null
 
 	}
 
+	function closeEventHandler() {
+
+		middleToInputUnpipe( holder )
+		console.log("middle socket close")
+		holder.middle.connection = null
+		holder.middle.socket = new net.Socket()
+
+	}
+
 	holder.middle.socket.on( "connect", connectionEventHandler )
+	holder.middle.socket.on( "end", endEventHandler )
+	holder.middle.socket.on( "close", closeEventHandler )
 	holder.middle.socket.on( "readable", readableEventHandler )
-	holder.middle.socket.on( "end", endEventHandle )
 
 
-	holder.middle.socket.connect(
+	holder.middle.socket.connect (
 			{
 
 			"host":holder.ffmpeg.address,
@@ -376,9 +401,18 @@ function inputToMiddlePipe( object ) {
 
 	var holder = object || false
 
-
 	holder.input.socket.pipe(holder.middle.socket)
-	holder.input.socket.resume()
+
+
+}
+
+function inputToMiddleUnpipe( object ) {
+
+	console.log("unping input to middle")
+
+	var holder = object || false
+
+	holder.input.socket.unpipe(holder.middle.socket)
 
 
 }
@@ -397,42 +431,62 @@ function middleToInputPipe( object ) {
 
 	var holder = object || false
 
-
 	holder.middle.socket.pipe(holder.input.socket)
-	holder.middle.socket.resume()
 
 
 }
 
+function middleToInputUnpipe( object ) {
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-crossPipe( object, child ) {
+	console.log("unpiping middle to input")
 
 	var holder = object || false
-	var child = child || false
 
-
-
-
+	holder.middle.socket.unpipe(holder.input.socket)
 
 
 }
+
+
+
+function ffmpegToOutputPipe( object ) {
+
+	console.log("crosspiping ffmpeg to output")
+
+	var holder = object || false
+
+	holder.ffmpeg.stdout.pipe(holder.output.socket)
+
+
+}
+
+function ffmpegToOutputPipe( object ) {
+
+	console.log("unpiping ffmpeg to output")
+
+	var holder = object || false
+
+	holder.ffmpeg.stdout.unpipe(holder.output.socket)
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -457,10 +511,25 @@ function inputSocket ( object ) {
 
 	}
 
+	function initEventHandler() {
+
+		console.log("input readable")
+		holder.input.socket.removeListener("readable", initEventHandler)
+
+		if ( ! holder.middle.connetion ) middleSocket( holder )
+
+	}
+
+
 	//cleaning on end
 	function endEventHandler() {
 
 		console.log("cleaning input socket")
+		inputToMiddleUnpipe( holder )
+
+		holder.middle.socket.end()
+		holder.middle.socket.destroy()
+
 		holder.input.socket = null
 		holder.input.readable = null
 
@@ -468,16 +537,14 @@ function inputSocket ( object ) {
 	}
 
 	holder.input.socket.on("end", endEventHandler)
-	holder.input.socket.on("readable", readableEventHandler)
+	holder.input.socket.on("readable", initEventHandler)
+
+	// holder.input.helper.readable = new Array()
+	// holder.input.helper.readable.push(initEventHandler)
 
 
 
 }
-
-
-
-
-
 
 
 
@@ -506,7 +573,7 @@ function inputServer ( object ) {
 		}
 
 		holder.input.socket = socket
-		inputSocket(holder)
+		inputSocket( holder )
 
 	}
 
@@ -538,23 +605,52 @@ function outputSocket ( object ) {
 
 	var holder = object || false
 
-	function readableEventHandler(d) {
+	if ( holder.ffmpeg.pipeTo.indexOf( holder.output.socket) == -1) {
+		console.log("output connection pushing for pipe")
+		holder.ffmpeg.pipeTo.push(holder.output.socket)
+		// console.log(holder.ffmpeg.pipeTo)
+	}
 
-		console.log("output connection on: " + holder.output.port )
+	function readableEventHandler() {
+
+		console.log("output readable on: " + holder.output.port )
+		holder.output.socket.read()
+		// holder.output.socket.removeListener("readable",readableEventHandler)
 
 	}
 
 	//cleaning on end
 	function endEventHandler(d) {
 
-
 		console.log("cleaning output socket")
+
+		if ( holder.ffmpeg.pipeTo.indexOf( holder.output.socket) != -1) {
+
+			console.log("output connection splice from pipe")
+			holder.ffmpeg.pipeTo.splice( holder.ffmpeg.pipeTo.indexOf( holder.output.socket) , 1 );
+			// console.log(holder.ffmpeg.pipeTo)
+		}
 		holder.output.socket = null
 
 
 	}
 
+
+	function connectEventHandler(){
+		console.log("output connect")
+
+	}
+
+	function errorEventHandler(e){
+
+		console.log("output error: " + e)
+		holder.output.socket = null
+
+	}
+
+	holder.output.socket.on("connect", connectEventHandler)
 	holder.output.socket.on("readable", readableEventHandler)
+	holder.output.socket.on("error", errorEventHandler)
 	holder.output.socket.on("end", endEventHandler)
 
 }
@@ -567,9 +663,9 @@ function outputServer ( object ) {
 	var holder = object || false
 
 
-	function connectionEventHandle(s) {
+	function connectionEventHandler(s) {
 
-		console.log("output connection on: " + holder.input.port )
+		console.log("output connection on: " + holder.output.port )
 
 		var socket = s || false
 
@@ -589,124 +685,8 @@ function outputServer ( object ) {
 
 	var server = net.createServer()
 	server.listen( holder.output.port, holder.output.address )
-	server.on("connection", connectionEventHandle)
+	server.on("connection", connectionEventHandler)
 
 	return server
 
 }
-
-
-
-
-
-
-
-
-
-
-function connectHandle(socket) {
-		socket.on("data", (e) => {
-			console.log(e)
-		})
-
-
-		function readableEventHandle(d) {
-
-			console.log(d)
-
-		}
-
-
-
-
-
-	socket.on("data", readableEventHandle)
-	socket.resume()
-
-		console.log(socket.readyState)
-
-
-	// console.log(socket.address())
-
-
-
-
-
-
-
-	// console.log(socket)
-
-
-	// pair.input.socket.once("readable", () => {
-	//
-	// 	console.log("tls readable")
-	//
-  //   //connecting to rtmp server instance
-	//
-	//
-	//
-	// 	pair.middle.socket.connect({
-	//
-	// 		"host":"localhost",
-	// 		"port":"8001"
-	//
-	// 	}, (s) => {
-	//
-	// 		console.log("tcp connection")
-	// 		pair.middle.socket.write(pair.input.socket.read())
-	//
-	// 		pair.input.socket.pipe(pair.middle.socket)
-	//
-	// 	})
-	//
-	//
-	//
-	// 	pair.middle.socket.once("readable", () => {
-	//
-	// 		console.log("tcp readable")
-	// 		var data = pair.middle.socket.read()
-	// 		console.log(data)
-	//
-	// 		pair.input.socket.write( data )
-	//
-	// 		pair.middle.socket.pipe(pair.input.socket)
-	//
-	//
-	//
-	// 	})
-	//
-	// 	pair.middle.socket.on("connect", () => {
-	//
-	//
-	// 	})
-	//
-	// })
-
-
-	socket.on("lookup", (e) => {
-
-
-  })
-
-	socket.on("close", (e) => {
-
-
-  })
-
-	socket.on("error", (e) => {
-
-
-  })
-
-	socket.on("end", (e) => {
-		console.log("end")
-
-	})
-
-
-}
-
-var certified = new tls.Server(cert)
-certified.on("secureConnection", connectHandle)
-certified.listen(8009, "0.0.0.0")
-// console.log(certified)
