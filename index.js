@@ -123,8 +123,8 @@ function setup(inputPort, middlePort, outputPort) {
 	  "socket":null,
 	  "server":null,
 	  "connection":null,
-		"pipeFrom":new Array(),
-		"pipeTo":new Array(),
+		"pipeFrom":null,
+		"pipeTo":null,
 		"port":null,
 		"address":"0.0.0.0",
 		"bufferInput":null,
@@ -139,8 +139,8 @@ function setup(inputPort, middlePort, outputPort) {
 	  "socket":null,
 	  "server":null,
 	  "connection":null,
-		"pipeFrom":new Array(),
-		"pipeTo":new Array(),
+		"pipeFrom":null,
+		"pipeTo":null,
 		"port":null,
 		"address":"127.0.0.1",
 		"bufferInput":null,
@@ -153,8 +153,8 @@ function setup(inputPort, middlePort, outputPort) {
 
 		"process":null,
 		"connection":null,
-		"pipeFrom":new Array(),
-		"pipeTo":new Array(),
+		"pipeFrom":null,
+		"pipeTo":null,
 		"port":null,
 		"address":"127.0.0.1",
 		"bufferInput":null,
@@ -170,8 +170,8 @@ function setup(inputPort, middlePort, outputPort) {
 	  "socket":null,
 	  "server":null,
 	  "connection":null,
-		"pipeFrom":new Array(),
-		"pipeTo":new Array(),
+		"pipeFrom":null,
+		"pipeTo":null,
 		"port":null,
 		"address":"0.0.0.0",
 		"bufferInput":null,
@@ -303,24 +303,23 @@ function middleSocket ( object ) {
 
 	if ( ! holder ) return false
 
-	function connectionEventHandle() {
+	function connectionEventHandler() {
 
 		console.log("middle socket connected")
 		holder.middle.connection = true
+		if ( holder.middle.pipeFrom ) return false
+		holder.middle.pipeFrom = holder.input
 		inputToMiddlePipe( holder )
 
 	}
 
-	function readableEventHandle() {
+
+
+	function readableEventHandler() {
 
 		console.log("middle socket readable")
-		if ( holder.middle.connection && holder.middle.readable == null ) {
+		middleToInputPipe( holder )
 
-			console.log(holder.middle.readable)
-			holder.middle.readable = true
-			middleToInputPipe( holder )
-
-		}
 
 
 	}
@@ -332,8 +331,8 @@ function middleSocket ( object ) {
 
 	}
 
-	holder.middle.socket.on( "connect", connectionEventHandle )
-	holder.middle.socket.on( "readable", readableEventHandle )
+	holder.middle.socket.on( "connect", connectionEventHandler )
+	holder.middle.socket.on( "readable", readableEventHandler )
 	holder.middle.socket.on( "end", endEventHandle )
 
 
@@ -353,7 +352,6 @@ function middleSocket ( object ) {
 function inputToMiddle( object ) {
 
 	var holder = object || false
-
 	if ( holder.input.socket && holder.ffmpeg.process ) {
 		middleSocket( holder )
 
@@ -379,10 +377,8 @@ function inputToMiddlePipe( object ) {
 	var holder = object || false
 
 
-
-	var data = holder.input.socket.read()
-	console.log("writing input to middle: " + data)
-	holder.middle.socket.write(  data )
+	holder.input.socket.pipe(holder.middle.socket)
+	holder.input.socket.resume()
 
 
 }
@@ -402,10 +398,8 @@ function middleToInputPipe( object ) {
 	var holder = object || false
 
 
-
-	var data = holder.middle.socket.read()
-	// console.log("writing middle to input: " + data)
-	// holder.input.socket.write( data )
+	holder.middle.socket.pipe(holder.input.socket)
+	holder.middle.socket.resume()
 
 
 }
@@ -428,6 +422,17 @@ function middleToInputPipe( object ) {
 
 
 
+crossPipe( object, child ) {
+
+	var holder = object || false
+	var child = child || false
+
+
+
+
+
+
+}
 
 
 
@@ -443,22 +448,14 @@ function inputSocket ( object ) {
 
 		// console.log(holder.input.socket)
 		// holder.input.socket.read()
-
-		if ( holder.input.readable ) return false
-		holder.input.readable = true
-		console.log("input server readable")
-		inputToMiddle(holder)
+		// console.log("input server readable")
+		crossPipe( holder, holder.input )
 
 
 		//holding first messages
 		// holder.input.bufferInput = holder.input.socket.read()
 
-
-
 	}
-
-
-
 
 	//cleaning on end
 	function endEventHandler() {
@@ -476,6 +473,14 @@ function inputSocket ( object ) {
 
 
 }
+
+
+
+
+
+
+
+
 
 
 function inputServer ( object ) {
@@ -512,6 +517,20 @@ function inputServer ( object ) {
 	return server
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
