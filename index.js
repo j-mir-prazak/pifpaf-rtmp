@@ -301,9 +301,16 @@ function ffmpegServer ( object ) {
 
 	}
 
+	function errorEventHandler(e){
+
+		console.log("ffmpeg error: " + e)
+
+	}
+
 	var server = ffmpeg( holder.ffmpeg.port , holder.ffmpeg.address )
 	server.stdout.on("readable", readableEventHandler)
 	server.on("exit", exitEventHandler)
+	server.on("error", exitEventHandler)
 	server.stderr.on("readable", readableErrEventHandler)
 
 	return server
@@ -705,9 +712,16 @@ function outputServer ( object ) {
 
 	}
 
+	function errorEventHandler(e){
+
+		console.log("output server error: " + e)
+
+	}
+
 	var server = net.createServer()
 	server.listen( holder.output.port, holder.output.address )
 	server.on("connection", connectionEventHandler)
+	server.on("error", errorEventHandler)
 
 	return server
 
