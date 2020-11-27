@@ -298,6 +298,8 @@ function ffmpegServer ( object ) {
 
 		console.log("ffmpeg exit: " + e)
 		holder.ffmpeg.process = ffmpegServer( holder )
+		holder.middle.socket.end()
+		holder.middle.socket.destroy()
 
 	}
 
