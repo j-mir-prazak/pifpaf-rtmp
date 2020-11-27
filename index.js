@@ -310,7 +310,7 @@ function ffmpegServer ( object ) {
 	var server = ffmpeg( holder.ffmpeg.port , holder.ffmpeg.address )
 	server.stdout.on("readable", readableEventHandler)
 	server.on("exit", exitEventHandler)
-	server.on("error", exitEventHandler)
+	server.on("error", errorEventHandler)
 	server.stderr.on("readable", readableErrEventHandler)
 
 	return server
