@@ -541,8 +541,8 @@ function inputSocket ( object ) {
 		console.log("cleaning input socket")
 		inputToMiddleUnpipe( holder )
 
-		holder.middle.socket.end()
-		holder.middle.socket.destroy()
+		// holder.middle.socket.end()
+		// holder.middle.socket.destroy()
 
 		holder.input.socket = null
 		holder.input.readable = null
