@@ -131,7 +131,7 @@ function setup(inputPort, middlePort, outputPort) {
 		"bufferOutput":null,
 		"readable":null,
 		"helper":{
-			"readable":new Array()
+			"readable":null
 		}
 
 	}
@@ -148,7 +148,10 @@ function setup(inputPort, middlePort, outputPort) {
 		"address":"127.0.0.1",
 		"bufferInput":null,
 		"bufferOutput":null,
-		"readable":null
+		"readable":null,
+		"helper":{
+					"readable":null
+				}
 
 	}
 
@@ -297,9 +300,25 @@ function ffmpegServer ( object ) {
 	function exitEventHandler(e) {
 
 		console.log("ffmpeg exit: " + e)
+
+
+		if (holder.input.socket) {
+
+			holder.input.socket.end()
+			// holder.input.socket.destroy()
+
+		}
+
+		if (holder.middle.socket) {
+
+			// console.log("ffmpeg would kill middle")
+
+			holder.middle.socket.end()
+			// holder.middle.socket.destroy()
+
+		}
+
 		holder.ffmpeg.process = ffmpegServer( holder )
-		holder.middle.socket.end()
-		holder.middle.socket.destroy()
 
 	}
 
@@ -323,50 +342,61 @@ function ffmpegServer ( object ) {
 
 function middleSocket ( object ) {
 
+	// console.log(object.ffmpeg)
+
 	var holder = object || false
 
 	if ( ! holder ) return false
 
+	holder.middle.socket = new net.Socket()
+
 	function connectionEventHandler() {
 
 		console.log("middle socket connected")
+		inputToMiddlePipe( holder, true )
 		holder.middle.connection = true
-		inputToMiddlePipe( holder )
 
 	}
-
 
 
 	function readableEventHandler() {
 
 		console.log("middle socket readable")
 		holder.middle.socket.removeListener("readable",readableEventHandler)
-		middleToInputPipe( holder )
-
-
+		middleToInputPipe( holder, true )
 
 	}
+
 
 	function endEventHandler() {
 
-		middleToInputUnpipe( holder )
+
 		console.log("middle socket ended")
+		middleToInputPipe( holder, false )
 		holder.middle.connection = null
+		// holder.middle.helper.readable = null
 
 	}
+
 
 	function closeEventHandler() {
 
-		middleToInputUnpipe( holder )
+
 		console.log("middle socket close")
+		middleToInputPipe( holder, false )
 		holder.middle.connection = null
-		holder.middle.socket = new net.Socket()
+		// holder.middle.helper.readable = null
+
+		holder.middle.socket = null
+
 
 	}
+
 
 	function errorEventHandler(e) {
 
 		console.log("middle socket error: "+e)
+
 	}
 
 	holder.middle.socket.on( "connect", connectionEventHandler )
@@ -391,8 +421,11 @@ function middleSocket ( object ) {
 
 function inputToMiddle( object ) {
 
+	console.log("connecting")
 	var holder = object || false
+
 	if ( holder.input.socket && holder.ffmpeg.process ) {
+
 		middleSocket( holder )
 
 	}
@@ -407,50 +440,205 @@ function inputToMiddle( object ) {
 
 
 
-
-
-
-function inputToMiddlePipe( object ) {
-
-	console.log("crosspiping input to middle")
+function inputToMiddlePipe( object, pipe ) {
 
 	var holder = object || false
+	var pipe = pipe
 
-	holder.input.socket.pipe(holder.middle.socket)
+	// console.log(  holder.input.socket._events  )
+
+	function pipeHandler() {
+
+		var data = holder.input.socket.read()
+
+		if ( data != null ) {
+
+			// console.log("input readable")
+			if (holder.middle.socket) {
+
+				// console.log(data)
+				holder.middle.socket.write(data)
+
+				}
+
+		}
+
+
+	}
+
+	if ( pipe == true ) {
+
+
+		console.log("crosspiping input to middle")
+		// console.log(  holder.input.socket._events  )
+		// holder.input.socket.pipe(holder.middle.socket)
+
+
+		holder.input.socket.on("readable", pipeHandler)
+
+		holder.input.helper.readable = pipeHandler
+
+	}
+
+	else if ( pipe == false ) {
+
+		console.log("unping input to middle")
+
+		if ( holder.input.helper.readable ) {
+
+			holder.input.socket.removeListener( "readable", holder.input.helper.readable )
+			holder.input.helper.readable = null
+
+
+			// holder.input.socket.read().length
+
+			// while ( holder.input.socket.readable ) {
+			//
+			// 	console.log("flushing input")
+			// 	var data = holder.input.socket.read()
+			// 	holder.middle.socket.write(data)
+			//
+			//
+			// }
+
+		}
+
+	}
+
+
+	// console.log (  holder.input.socket._events  )
 
 
 }
 
+
+
+
+
 function inputToMiddleUnpipe( object ) {
+
 
 	console.log("unping input to middle")
 
 	var holder = object || false
 
-	holder.input.socket.unpipe(holder.middle.socket)
+	console.log(holder.input.socket._events)
+
+	console.log( holder.input.helper.readable.length )
+
+	var readable = holder.input.helper.readable.pop()
+
+	while ( readable ) {
+
+		console.log( holder.input.helper.readable.length )
+
+		holder.input.socket.removeListener("readable", readable)
+
+		// console.log(holder.input.socket._events)
+
+		readable = holder.input.helper.readable.pop()
+
+	}
+
+
+	// holder.input.socket.unpipe(holder.middle.socket)
 
 
 }
 
 
 
-
-
-
-
-
-
-
-function middleToInputPipe( object ) {
-
-	console.log("crosspiping middle to input")
+function middleToInputPipe( object, pipe ) {
 
 	var holder = object || false
+	var pipe = pipe
 
-	holder.middle.socket.pipe(holder.input.socket)
+	// console.log(  holder.input.socket._events  )
+
+	function pipeHandler() {
+
+
+		var data = holder.middle.socket.read()
+
+		if ( data != null ) {
+
+			// console.log("input readable")
+			if ( holder.input.socket ) {
+				// console.log(data)
+				holder.input.socket.write(data)
+			}
+
+		}
+
+
+	}
+
+	if ( pipe == true ) {
+
+
+		console.log("crosspiping middle to input")
+		// console.log(  holder.input.socket._events  )
+		// holder.input.socket.pipe(holder.middle.socket)
+
+
+		holder.middle.socket.on("readable", pipeHandler)
+
+		holder.middle.helper.readable = pipeHandler
+
+	}
+
+	else if ( pipe == false ) {
+
+		console.log("unping middle to input")
+
+		if ( holder.middle.helper.readable ) {
+
+			holder.middle.socket.removeListener( "readable", holder.middle.helper.readable )
+			holder.middle.helper.readable = null
+
+
+			// holder.input.socket.read().length
+
+			// while ( holder.input.socket.readable ) {
+			//
+			// 	console.log("flushing input")
+			// 	var data = holder.input.socket.read()
+			// 	holder.middle.socket.write(data)
+			//
+			//
+			// }
+
+		}
+
+
+	}
+	// console.log(holder.middle.helper.readable)
+
+
+	// console.log (  holder.middle.socket._events  )
 
 
 }
+
+
+
+
+
+
+
+
+
+
+// function middleToInputPipe( object ) {
+//
+// 	console.log("crosspiping middle to input")
+//
+// 	var holder = object || false
+//
+// 	holder.middle.socket.pipe(holder.input.socket)
+//
+
+// }
 
 function middleToInputUnpipe( object ) {
 
@@ -541,9 +729,9 @@ function inputSocket ( object ) {
 	function endEventHandler() {
 
 		console.log("cleaning input socket")
-		inputToMiddleUnpipe( holder )
+		inputToMiddlePipe( holder, false )
 
-		// holder.middle.socket.end()
+		holder.middle.socket.end()
 		// holder.middle.socket.destroy()
 
 		holder.input.socket = null
@@ -554,8 +742,8 @@ function inputSocket ( object ) {
 
 	function errorEventHandler(e){
 
-		console.log("output error: " + e)
-		holder.output.socket = null
+		console.log("input socket error: " + e)
+		holder.input.socket = null
 
 	}
 
@@ -645,7 +833,7 @@ function outputSocket ( object ) {
 	function readableEventHandler() {
 
 		console.log("output readable on: " + holder.output.port )
-		holder.output.socket.read()
+		if ( holder.output.socket ) holder.output.socket.read()
 		// holder.output.socket.removeListener("readable",readableEventHandler)
 
 	}
