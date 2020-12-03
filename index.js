@@ -4,6 +4,13 @@ var tls = require('tls'),
     spawn = require('child_process'),
 		string_decoder = require('string_decoder')
 
+
+var set_input_port = process.argv[2] || false
+var set_middle_port = process.argv[3] || false
+var set_output_port = process.argv[4] || false
+
+if ( set_input_port == false || set_middle_port == false || set_output_port == false ) process.exit(1)
+
 var decoder = new string_decoder.StringDecoder('utf8');
 
 var cert = {
@@ -208,7 +215,7 @@ function setup(inputPort, middlePort, outputPort) {
 
 }
 
-var pair = setup( "8000", "8001", "8002" )
+var pair = setup( set_input_port, set_middle_port, set_output_port )
 
 
 
@@ -824,7 +831,7 @@ function outputSocket ( object ) {
 
 	var holder = object || false
 
-	if ( holder.ffmpeg.pipeTo.indexOf( holder.output.socket) == -1) {
+	if ( holder.ffmpeg.pipeTo.indexOf( holder.output.socket) == -1 ) {
 		console.log("output connection pushing for pipe")
 		holder.ffmpeg.pipeTo.push(holder.output.socket)
 		// console.log(holder.ffmpeg.pipeTo)
@@ -888,7 +895,8 @@ function outputServer ( object ) {
 
 		var socket = s || false
 
-		if ( ! socket || holder.output.socket ) {
+		// if ( ! socket || holder.output.socket ) {
+		if ( ! socket  ) {
 
 			console.log("output connection denied")
 			if ( socket ) socket.end()
