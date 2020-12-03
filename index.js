@@ -895,8 +895,8 @@ function outputServer ( object ) {
 
 		var socket = s || false
 
-		// if ( ! socket || holder.output.socket ) {
-		if ( ! socket  ) {
+		if ( ! socket || holder.output.socket ) {
+		// if ( ! socket  ) {
 
 			console.log("output connection denied")
 			if ( socket ) socket.end()
